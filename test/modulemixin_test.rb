@@ -9,8 +9,14 @@ context "A module which includes Overridable::ModuleMixin has some methods defin
         'SomeModule.foo'
       end
 
+      protected
       def bar a
         super + 'SomeModule.bar'
+      end
+
+      private
+      def baz
+        super + 'SomeModule.baz'
       end
     end
 
@@ -24,9 +30,12 @@ context "A module which includes Overridable::ModuleMixin has some methods defin
           'SomeClass.foo'
         end
 
-        private
         def bar a
           'SomeClass.bar'
+        end
+
+        def baz
+          'SomeClass.baz'
         end
       end
 
@@ -39,10 +48,80 @@ context "A module which includes Overridable::ModuleMixin has some methods defin
       asserts("foo should be overrided.") {
         topic.new.foo
       }.equals('SomeModule.foo')
+
       asserts("bar should be overrided.") {
-        #topic.new.send :bar, :whatever
-        topic.new.bar :whatever
+        topic.new.send :bar, :whatever
       }.equals('SomeClass.bar' + 'SomeModule.bar')
+
+      asserts("baz should be overrided.") {
+        topic.new.send :baz
+      }.equals('SomeClass.baz' + 'SomeModule.baz')
+    end
+
+    context "We specify which methods can be overrided." do
+      setup {
+        SomeModule.module_eval {
+          overrides :only  => [:foo, :bar]
+        }
+        topic.send :include, SomeModule
+        topic
+      }
+
+      asserts("foo should be overrided.") {
+        topic.new.foo
+      }.equals('SomeModule.foo')
+
+      asserts("bar should be overrided.") {
+        topic.new.send :bar, :whatever
+      }.equals('SomeClass.bar' + 'SomeModule.bar')
+
+      asserts("baz should not be overrided.") {
+        topic.new.baz
+      }.equals('SomeClass.baz')
+    end
+
+    context "We specify which methods cannot be overrided." do
+      setup {
+        SomeModule.module_eval {
+          overrides :except  => :baz
+        }
+        topic.send :include, SomeModule
+        topic
+      }
+
+      asserts("foo should be overrided.") {
+        topic.new.foo
+      }.equals('SomeModule.foo')
+
+      asserts("bar should be overrided.") {
+        topic.new.send :bar, :whatever
+      }.equals('SomeClass.bar' + 'SomeModule.bar')
+
+      asserts("baz should not be overrided.") {
+        topic.new.baz
+      }.equals('SomeClass.baz')
+    end
+
+    context "We specify both the whitelist and blacklist of to-be-overrided methods." do
+      setup {
+        SomeModule.module_eval {
+          overrides :only => [:foo, :bar, :baz], :except  => :baz
+        }
+        topic.send :include, SomeModule
+        topic
+      }
+
+      asserts("foo should be overrided.") {
+        topic.new.foo
+      }.equals('SomeModule.foo')
+
+      asserts("bar should be overrided.") {
+        topic.new.send :bar, :whatever
+      }.equals('SomeClass.bar' + 'SomeModule.bar')
+
+      asserts("baz should not be overrided.") {
+        topic.new.baz
+      }.equals('SomeClass.baz')
     end
   end
 end

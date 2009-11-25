@@ -4,36 +4,36 @@ Overridable is a pure ruby library which helps you to make your methods which ar
 
 ## Why?
 
-We all know that it's impossible for modules to override methods that are defined in classes when they are included. For example:
+Some people are overusing `alias_method_chain` in their codes like what wycats mentioned in [his post][post]. One of the reasons that people like using `alias_method_chain` is because it's impossible for modules to override methods that are defined in classes when they are included. For example:
     class Thing
       def foo
         'Thing.foo'
       end
     end
     
-    module Redef
+    module Extension
       def foo
-        'Redef.foo'
+        'Extension.foo'
       end
     end
     
-    Thing.send :include, Redef
-    Thing.new.foo #=> Thing.foo # not Redef.foo
+    Thing.send :include, Extension
+    Thing.new.foo #=> Thing.foo # not Extension.foo
 
-Usually, in order to achieve that goal, we will write the Redef module like this:
-    module Redef
+In order to achieve that goal, some will write the Extension module like this:
+    module Extension
       def foo_with_redef
-        'Redef.foo'
+        'Extension.foo'
       end
       # you can also do this by: alias_method_chain :foo, :redef, if you use ActiveSupport.
       alias foo_without_redef foo
       alias foo foo_with_redef
     end
     
-    Thing.send :include, Redef
-    Thing.new.foo #=> Redef.foo
+    Thing.send :include, Extension
+    Thing.new.foo #=> Extension.foo
 
-So it will likely become a with/without hell in your code ( you can find dozens of such methods in Rails' code ). And *overridable* is a library that provides a neat mean to resolve this problem.
+But according to the [post][post], this is a bad practice. And *overridable* is a gem that provides a neat mean to resolve this problem.
 
 ## How?
 
@@ -41,17 +41,17 @@ There are two ways to do this with *overridable*: in class or in module.
 
 ### In class
 
-Remember Thing and Redef in our first example? Let's make some changes:
+Remember Thing and Extension in our first example? Let's make some changes:
     require 'overridable'
     
     Thing.class_eval {
       include Overridable
       overrides :foo
       
-      include Redef
+      include Extension
     }
     
-    Thing.new.foo #=> Redef.foo
+    Thing.new.foo #=> Extension.foo
 That's it! You can specify which methods can be overrided by `overrides` method. One more example based on the previous one:
     Thing.class_eval {
       def bar; 'Thing.bar' end
@@ -61,26 +61,26 @@ That's it! You can specify which methods can be overrided by `overrides` method.
       overrides :bar, :baz
     }
     
-    Redef.module_eval {
-      def bar; 'Redef.bar' end
-      def baz; 'Redef baz' end
-      def id;  'Redef'     end
+    Extension.module_eval {
+      def bar; 'Extension.bar' end
+      def baz; 'Extension baz' end
+      def id;  'Extension'     end
     }
     
     thing = Thing.new
-    thing.bar #=> 'Redef.bar'
-    thing.baz #=> 'Redef.baz'
+    thing.bar #=> 'Extension.bar'
+    thing.baz #=> 'Extension.baz'
     thing.id  #=> 'Thing'
-Of course it's not the end of our story ;) How could I call this *override* if we cannot use `super`? Continue our example:
-    Redef.module_eval {
+Of course it's not the end of our story ;) How could I call this *override* if we cannot use `super`? Go on with our example:
+    Extension.module_eval {
       def bar
         parent = super
-        me = 'Redef.bar'
+        me = 'Extension.bar'
         "I'm #{me} and I overrided #{parent}"
       end
     }
 
-    Thing.new.bar => I'm Redef.bar and I overrided Thing.bar
+    Thing.new.bar => I'm Extension.bar and I overrided Thing.bar
 
 ### In module
 
@@ -92,7 +92,7 @@ If you have many methods in your module and find that it's too annoying to use `
       def method_n;   ... end
     end
     
-    module Redef
+    module Extension
       include Overridable::ModuleMixin
     
       def method_one; ... end
@@ -101,7 +101,19 @@ If you have many methods in your module and find that it's too annoying to use `
       def method_n;   ... end
     end
 
-    Thing.send :include, Redef #=> method_one, method_two, ..., method_n are all overrided.
+    Thing.send :include, Extension #=> method_one, method_two, ..., method_n are all overrided.
+
+Since version 0.3.1, you can use `overrides` in your module to specify which method should be overrided and which should not. Let's rewrite the Extension module above:
+    module Extension
+      include Overridable::ModuleMixin
+      overrides :only => [:method_one, :method_two]
+
+      # define methods here...
+    end
+    
+    Thing.send :include, Extension #=> only method_one and method_two will be overrided.
+
+You can also use `overrides :except => [:method_one, :method_two]` to tell the module not to override method_one and method_two in the classes which include it.
 
 ## Install
 
@@ -145,3 +157,5 @@ These features **only** will be added when they are asked for.
 ## Copyright
 
 Copyright (c) 2009 梁智敏. See LICENSE for details.
+
+[post]: http://yehudakatz.com/2009/03/06/alias_method_chain-in-models/

@@ -90,12 +90,44 @@ module Overridable
       def append_features mod #:nodoc:
         # these must be done in `append_features`, not `included`
         mod.send :include, Overridable
-        mod.overrides *(
-          public_instance_methods +
-          protected_instance_methods +
-          private_instance_methods
-        )
+
+        methods =
+          if @override_options && !@override_options[:only].empty?
+              @override_options[:only]
+          else
+            all_methods = 
+              public_instance_methods +
+              protected_instance_methods +
+              private_instance_methods
+
+            if @override_options && !@override_options[:except].empty?
+              all_methods - @override_options[:except]
+            else
+              all_methods
+            end
+          end
+
+        mod.overrides *methods
         super
+      end
+
+      # Whitelist and blacklist for to-be-overrided methods.
+      # If this method with the same options is called multiple times within the same module,
+      # only the last call will work.
+      # @param [Hash] options the options describe methods are to be or not to be overrided.
+      # @option options [Symbol, Array<Symbol>] :only only methods specified in this option will be overrided.
+      # @option options [Symbol, Array<Symbol>] :except methods specified in this option will not be overrided.
+      # @example
+      #   overrides :except => [:foo, :bar]
+      #   overrides :except => :baz
+      #   overrides :only => [:foo, :bar]
+      def overrides options = {}
+        raise ArgumentError, "Only :only and :except options are accepted." unless
+          options.keys.all? { |k| [:only, :except].include? k }
+        @override_options ||= {:only => [], :except => []}
+        @override_options[:only] = [options[:only]].flatten.compact if options[:only]
+        @override_options[:except] = [options[:except]].flatten.compact if options[:except]
+        @override_options[:only] = @override_options[:only] - @override_options[:except]
       end
     end
   end
@@ -137,9 +169,9 @@ module Overridable
           end
         }
         $VERBOSE = old_verbose
-
-        nil
       end
+
+      nil
     end
   end
 
