@@ -161,4 +161,34 @@ context "a classes with some methods defined in it" do
     end
   end
 
+  context "there are also some protected and private methods in it." do
+    setup {
+      topic.class_eval {
+        protected
+        def protected_method; end
+        private
+        def private_method; end
+      }
+      topic
+    }
+
+    context "Call overrides on these protected and private methods, it should not change their scope." do
+      setup {
+        topic.class_eval {
+          include Overridable
+          overrides :protected_method, :private_method
+        }
+        topic
+      }
+
+      should("raise exception when call protected_method outside the class.") {
+        topic.new.protected_method
+      }.raises(NoMethodError, /protected method `protected_method' called/)
+
+      should("raise exception when call private_method outside the class.") {
+        topic.new.private_method
+      }.raises(NoMethodError, /private method `private_method' called/)
+    end
+  end
+
 end

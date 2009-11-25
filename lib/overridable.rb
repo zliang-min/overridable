@@ -163,10 +163,15 @@ module Overridable
 
         old_verbose, $VERBOSE = $VERBOSE, nil # supress warnings
         methods.each { |m|
+          scope = private_instance_methods(false).include?(m.name) ?
+            :private :
+            protected_instance_methods(false).include?(m.name) ?
+            :protected : :public
           remove_method m.name
           mod.send :define_method, m.name do |*args, &blk|
             m.bind(self).call(*args, &blk)
           end
+          mod.send scope, m.name
         }
         $VERBOSE = old_verbose
       end
